@@ -1,36 +1,39 @@
 using Mango.Services.Identity;
 using Mango.Services.Identity.DbContexts;
-using Mango.Services.Identity.Initializer;
 using Mango.Services.Identity.Models;
+using Mango.Services.Identity.Initializer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Duende.IdentityServer.Services;
+//using Mango.Services.Identity.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddDbContext<ApplicationDbContext>(options => 
+builder.Services.AddControllersWithViews();
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Identity server
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>().AddDefaultTokenProviders();
 
-var identityBuilder = builder.Services.AddIdentityServer(options =>
+builder.Services.AddIdentityServer(options =>
 {
     options.Events.RaiseErrorEvents = true;
     options.Events.RaiseInformationEvents = true;
     options.Events.RaiseFailureEvents = true;
     options.Events.RaiseSuccessEvents = true;
     options.EmitStaticAudienceClaim = true;
-}).AddInMemoryIdentityResources(SD.IdentityResources)
-.AddInMemoryApiScopes(SD.ApiScopes)
-.AddInMemoryClients(SD.Clients)
-.AddAspNetIdentity<ApplicationUser>();
+})
+    .AddInMemoryIdentityResources(SD.IdentityResources)
+    .AddInMemoryApiScopes(SD.ApiScopes)
+    .AddInMemoryClients(SD.Clients)
+    .AddAspNetIdentity<ApplicationUser>();
 
 builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 
-identityBuilder.AddDeveloperSigningCredential();
-
-
-builder.Services.AddControllersWithViews();
+//identityBuilder.AddDeveloperSigningCredential();
 
 var app = builder.Build();
 
@@ -42,15 +45,16 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// add database seeder
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+SeedDatabase();
 app.UseIdentityServer();
 
 app.UseAuthorization();
-//IDbInitializer dbInitalizer = app.Services.GetRequiredService<IDbInitializer>();
-SeedDatabase();
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
